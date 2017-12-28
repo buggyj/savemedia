@@ -1,0 +1,45 @@
+{
+    "name": "Save Media",
+    "version": "0.0",
+    "manifest_version": 2,
+    "applications": {
+        "gecko": {
+            "id": "random201709301147b@buggyjef.uk",
+            "strict_min_version": "56.0"
+        }
+    }, 
+     "browser_action": {
+      "default_icon": {
+         "48": "csaver48.png"
+      },
+      "default_popup": "popup.html"
+   },
+    "icons": {
+
+		"16": "csaver16.png",
+		"48": "csaver48.png"
+	},
+    "content_scripts" : [ {
+		"js" : [
+			"contentscript.js"
+		],
+      "matches" : [
+        "file:///*"
+      ],
+		"run_at" : "document_start"
+	} ],
+    "background": {
+        "scripts": ["background.js"]
+    },
+  "options_ui": {
+    "page": "options.html",
+    "chrome_style": true
+  },
+     "short_name": "csaver",
+    "permissions": [
+		"storage" ,
+        "downloads",
+        "<all_urls>"
+    ],
+      "web_accessible_resources": ["script.js"]
+}

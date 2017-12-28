@@ -1,0 +1,155 @@
+var testmode = false; //set to true to avoid path test
+var minutebacks = false; //set to true to allow backs every minute for testing
+
+var tiddlywikilocations = "tiddlywikilocations";
+var  $ = {"/":"/"};
+
+var testfilecontent = "This is a test file for csaver extension. If you are reading this file an error has ocurred - this file can be deleted";
+
+
+
+var os = "notwin";
+chrome.runtime.getPlatformInfo( function(info) {if(info.os == "win") { $["/"] = "\\"; os = "win";}});
+
+var testbase ;//	tiddlywikilocations+$["/"]+'readTiddlySaverInstruction';
+var round = '59723833'; //by rotating this string of digits we can have 8 unique named test files for simutaneous use
+						//ie testpath = testbase+round+'.html';rotate(round) for next test file
+var rlen = round.length - 1;
+
+var dataURItoBlob = function(dataURI, dataTYPE) {
+        var bin = atob(dataURI), arr = [];
+        for(var i = 0; i < bin.length; i++) arr.push(bin.charCodeAt(i));
+        return new Blob([new Uint8Array(arr)], {type: dataTYPE});
+   }
+
+chrome.runtime.onMessage.addListener(function(msg, sender, sendResponse) {
+    console.log("csaverbg: got request");
+    
+
+    function dodownload (msg,tiddlywikilocations){	
+	var subdir,path = msg.path.split($["/"]);
+	path.pop();
+	path = path.join($["/"]);
+	path = path?$["/"]+path:"";
+	subdir = msg.subdir?$["/"]+msg.subdir:"";	
+	console.log("csaver: do "+tiddlywikilocations+ path+subdir+$["/"]+ msg.name);
+	chrome.downloads.download({
+		url:URL.createObjectURL(dataURItoBlob(msg.txt,msg.mtype)),
+		filename: tiddlywikilocations+ path+subdir+$["/"]+ msg.name,
+		conflictAction: 'overwrite'
+	},
+	function(id) {
+		console.log("csaver: saved "+path+subdir+$["/"]+ msg.name);
+		sendResponse ({status:"saved"});
+
+	});
+}
+
+	////////////////////////// start ///////////////////////////////
+	if (msg.type === "start") {
+		console.log("csaverbg: start");
+		chrome.storage.local.get({homedir:  "tiddlywikilocations"}, function(parms) {
+		tiddlywikilocations = parms.homedir;
+		testbase = tiddlywikilocations+$["/"]+'readTiddlySaverInstruction';
+		var path, firstloc = msg.filePath.indexOf($["/"]+tiddlywikilocations+$["/"]);
+		
+		msg.fPath = msg.filePath.substring(0, firstloc);
+		if (firstloc === -1) {
+			console.log("file not in a sudir to "+tiddlywikilocations+", it must be saved to the download dir");
+			path = msg.filePath.split($["/"]);
+			msg.path = path[path.length-1];
+			msg.twdl = false;
+		}
+		else {
+			msg.path = msg.filePath.slice(firstloc+tiddlywikilocations.length + "//".length);
+			msg.twdl = true;
+		}
+		console.log("csaverbg: background 3nd step");
+		// show the choose file dialogue when tw not under 'tiddlywikilocations'
+		if (!msg.twdl) {
+			console.log("csaverbg: not in "+tiddlywikilocations+" "+msg.path);
+			sendResponse({status:"failedloc",location:tiddlywikilocations});
+		} else if (testmode) {
+			console.log("csaverbg: avoid path testing");
+			dodownload(msg,tiddlywikilocations);//avoid path testing
+		} else{ 
+			// first download check our destination is valid by download a dummy file first and then reading back the filepath	
+			round = round[rlen] + round.substring(0, rlen);
+			chrome.downloads.download({
+				url: URL.createObjectURL(new Blob([testfilecontent], {type: 'text/plain'})),
+				filename: testbase+round+'.html',
+				conflictAction: 'overwrite'
+				},function(id){chrome.downloads.onChanged.addListener(function hearchange(deltas){
+					// wait for completion
+					if (deltas.id == id && deltas.state && deltas.state.current === "complete") {
+						chrome.downloads.onChanged.removeListener(hearchange);
+						chrome.downloads.search({id:id}, function(x){
+							var bodyy = msg.fPath, bodyx = x[0].filename.split($["/"]+testbase)[0];
+							if (os === "win") {//make drive letters the same case
+								bodyy = bodyy.replace(/^./g, bodyy[0].toLowerCase());
+								bodyx = bodyx.replace(/^./g, bodyx[0].toLowerCase());
+							}  
+							if (bodyy === bodyx) {
+								// All tests passed!
+								dodownload(msg,tiddlywikilocations);
+							} else {				
+								console.log("csaverbg: failed path "+msg.fPath +"!="+x[0].filename.split($["/"]+testbase)[0]);
+								sendResponse({status:"failedpath",path:x[0].filename.split($["/"]+testbase)[0]});
+							}
+							
+							chrome.downloads.removeFile(id,function(){chrome.downloads.erase({id:id})});//move this further up
+						});
+								
+					}
+					//
+				})}
+			)
+		}
+		});
+		return true;
+	} else {
+			console.log("csaverbg: start finish");
+			var path = msg.filePath.split($["/"]);
+			path = path[path.length-1];
+			chrome.downloads.download({
+				url:URL.createObjectURL(dataURItoBlob(msg.txt,msg.mtype)),
+
+				filename: tiddlywikilocations+$["/"]+path,
+				saveAs : true
+			},function(id){
+				if (id === undefined) {
+					sendResponse({status:"cancelled"});
+					console.log("csaverbg: sent cancelled");
+				} else {
+					chrome.downloads.onChanged.addListener(function hearchange2(deltas){
+						if (deltas.id == id && deltas.state && deltas.state.current === "interrupted") { 
+							sendResponse({status:"cancelled"});
+							console.log("csaverbg: sent cancelled");
+							chrome.downloads.onChanged.removeListener(hearchange2);return true;
+						}
+						// wait for completion
+						if (deltas.id == id && deltas.state && deltas.state.current === "complete") {
+							chrome.downloads.onChanged.removeListener(hearchange2);
+							console.log("csaverbg: finishing manual save");
+							chrome.downloads.search({id:id}, function(x){
+								var bodyy = msg.filePath, bodyx = x[0].filename.split($["/"]+testbase)[0];
+								if (os === "win") {//make drive letters the same case
+									bodyy = bodyy.replace(/^./g, bodyy[0].toLowerCase());
+									bodyx = bodyx.replace(/^./g, bodyx[0].toLowerCase());
+								}
+								console.log("csaverbg: last paths "+msg.filePath +"!="+x[0].filename.split($["/"]+testbase)[0]);
+								if (bodyy === bodyx) {
+									sendResponse({status:"saved", newlocal:null});return true;
+								} else {
+									sendResponse({status:"saved",newlocal:x[0].filename});return true;
+								}										
+							});
+							return true;
+						}
+					return true;})
+				}
+			});
+	}return true;
+});
+
+
