@@ -4,7 +4,7 @@ document.addEventListener('DOMContentLoaded', function () {
   });
   
   document.querySelector('#about').addEventListener('click', function() {
-    window.open("https://github.com/buggyj/mediasaver");
+    window.open("https://github.com/buggyj/savemedia");
   });
 
 });
