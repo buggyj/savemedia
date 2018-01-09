@@ -11,7 +11,7 @@ Then in chrome navigate to chrome://extensions/ and click 'load unpacked extensi
 Note that chome with ask you to disable the 'developer mode' extensions each time you start the browser (but not with linux), as the extension was not loaded from the Chrome Web Store.
 
 ## Aim
-1. to replace (as far as possible) the now defunct tiddlyfox extension, and provide backups.
+1. to facilitate saving snaps to disk. 
 
 ## Scope and limitations
 1. This is a browser extension designed to work with chrome and other chromium based browsers, and the new firefox browser (v57 and latter).
