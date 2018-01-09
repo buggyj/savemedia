@@ -2,6 +2,7 @@
 
 ## Getting started (firefox from v57)
 1. Click this link to start installing.
+https://github.com/buggyj/savemedia/releases/download/0.0.1/save_media-0.0.1-an.fx.xpi
 
 ## Getting started (chrome)
 1. Install by downloading (goto the release https://github.com/buggyj/savemedia/releases and download by click the 'source code' zip link) and unzipping (e.g. in a directory called savemedia). 
